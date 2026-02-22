@@ -1,0 +1,74 @@
+name: Security
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run every Monday at 08:00 UTC
+    - cron: '0 8 * * 1'
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Secret Scanning with Gitleaks
+  # ---------------------------------------------------------------------------
+  gitleaks:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ---------------------------------------------------------------------------
+  # SAST with Semgrep
+  # ---------------------------------------------------------------------------
+  semgrep:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    if: github.actor != 'dependabot[bot]'
+    steps:
+      - uses: actions/checkout@v4
+
+      # OWASP Top 10 — blocking: any finding fails the PR
+      - name: Run Semgrep (OWASP — blocking)
+        run: semgrep scan --config "p/owasp-top-ten" --error
+
+      # Full scan — informational only (requires SEMGREP_APP_TOKEN in GitHub secrets)
+      - name: Run Semgrep (full scan — informational)
+        run: semgrep ci --config "p/nodejs" --config "p/typescript" --config "p/jwt"
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+        continue-on-error: true
+
+  # ---------------------------------------------------------------------------
+  # Dependency Audit
+  # ---------------------------------------------------------------------------
+  audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Audit backend dependencies
+        run: npm audit --audit-level=high
+        working-directory: backend
+        continue-on-error: true  # Report but don't block for now
+
+      - name: Audit frontend dependencies
+        run: npm audit --audit-level=high
+        working-directory: frontend
+        continue-on-error: true

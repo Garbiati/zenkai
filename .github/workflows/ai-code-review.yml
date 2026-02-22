@@ -1,0 +1,66 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+    branches: [main, develop]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  ai-review:
+    name: AI Code Review
+    runs-on: ubuntu-latest
+    # Only run on non-draft PRs
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Security: pass github context via env: not inline interpolation (prevents shell injection)
+      - name: Get PR diff (source files only)
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git diff "origin/$BASE_REF...$HEAD_SHA" \
+            -- \
+            'backend/src/**/*.ts' \
+            'frontend/app/**/*.tsx' \
+            'frontend/app/**/*.ts' \
+            'frontend/components/**/*.tsx' \
+            'frontend/lib/**/*.ts' \
+            > /tmp/pr_diff.txt
+
+          LINES=$(wc -l < /tmp/pr_diff.txt)
+          echo "Diff size: $LINES lines"
+
+          head -3500 /tmp/pr_diff.txt > /tmp/pr_diff_review.txt
+          if [ "$LINES" -gt 3500 ]; then
+            echo "" >> /tmp/pr_diff_review.txt
+            echo "# [diff truncated — full diff has $LINES lines]" >> /tmp/pr_diff_review.txt
+          fi
+
+      - name: Run AI Code Review
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: python3 scripts/ai-review.py
+
+      - name: Post review comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Remove previous bot review comments to keep PR clean
+          EXISTING=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" \
+            --jq '.[] | select(.user.login == "github-actions[bot]") | select(.body | startswith("## 🤖 AI Code Review")) | .id')
+          for ID in $EXISTING; do
+            gh api --method DELETE "repos/$REPO/issues/comments/$ID" || true
+          done
+          gh pr comment "$PR_NUMBER" --body "$(cat /tmp/review_body.txt)"
