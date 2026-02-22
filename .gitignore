@@ -1,0 +1,20 @@
+node_modules/
+frontend/.next/
+backend/dist/
+.env
+.env.*
+!.env.example
+test-results/
+screenshots/
+*.tsbuildinfo
+.DS_Store
+.vscode/
+.idea/
+
+# Test coverage
+coverage/
+backend/coverage/
+frontend/coverage/
+
+# Claude Code audit logs (machine-local, not for VCS)
+.claude/audit/

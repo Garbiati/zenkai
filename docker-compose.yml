@@ -1,0 +1,66 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: team_dashboard
+      POSTGRES_USER: dashboard_user
+      POSTGRES_PASSWORD: dashboard_pass
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U dashboard_user -d team_dashboard']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - '3001:3001'
+    environment:
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+      DATABASE_USER: dashboard_user
+      DATABASE_PASSWORD: dashboard_pass
+      DATABASE_NAME: team_dashboard
+      JWT_SECRET: team-dashboard-jwt-secret-key-2024
+      NODE_ENV: development
+      CORS_ORIGINS: 'http://localhost:3000'
+      CORS_REGEX: '\\.trycloudflare\\.com$'
+      APP_URL: 'http://localhost:3000'
+      MAIL_HOST: ''
+      MAIL_PORT: '587'
+      MAIL_USER: ''
+      MAIL_PASS: ''
+      MAIL_FROM: 'noreply@zenkai.app'
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm run seed && npm run start:dev"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - '3000:3000'
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      WATCHPACK_POLLING: 'true'
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    command: npx next dev --hostname 0.0.0.0
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

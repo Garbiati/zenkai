@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+# Run backend tests if any .ts files were changed in commits being pushed
+
+CHANGED_TS=$(git diff --name-only HEAD @{upstream} 2>/dev/null | grep -E '\.ts$' | grep -v '\.spec\.ts$' | head -1 || true)
+
+if [ -n "$CHANGED_TS" ]; then
+  echo "TypeScript source files changed — running backend tests..."
+  cd backend && npm test
+fi

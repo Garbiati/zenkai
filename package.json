@@ -1,0 +1,22 @@
+{
+  "name": "zenkai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Team Activity Dashboard — Kanban diário estilo Excalidraw",
+  "scripts": {
+    "prepare": "husky",
+    "lint:backend": "cd backend && npm run lint",
+    "lint:frontend": "cd frontend && npm run lint",
+    "lint": "npm run lint:backend && npm run lint:frontend",
+    "test:backend": "cd backend && npm test",
+    "test": "npm run test:backend"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.6.1",
+    "@commitlint/config-conventional": "^19.6.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.4.3",
+    "playwright": "^1.58.2",
+    "prettier": "^3.8.1"
+  }
+}
