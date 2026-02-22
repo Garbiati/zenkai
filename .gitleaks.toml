@@ -1,0 +1,20 @@
+# Gitleaks configuration — allowlists for known false positives
+# See: https://github.com/gitleaks/gitleaks#configuration
+# Version: gitleaks v8
+
+title = "Zenkai Gitleaks Config"
+
+[extend]
+useDefault = true
+
+# Global allowlist: patterns that are never secrets
+[allowlist]
+description = "Global false-positive allowlists"
+regexes = [
+  # expiresIn option labelKey strings in onboarding page are UI labels, not API keys
+  '''inviteExpiry\w+''',
+]
+paths = [
+  # i18n message keys look like API keys to generic rules
+  '''messages/.*\.json''',
+]
